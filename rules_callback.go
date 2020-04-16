@@ -25,7 +25,7 @@ type ScanCallback interface{}
 // scan. The RuleMatching method corresponds to YARA's
 // CALLBACK_MSG_RULE_MATCHING message.
 type ScanCallbackMatch interface {
-	RuleMatching(*Rule) (bool, error)
+	RuleMatching(*C.YR_SCAN_CONTEXT, *Rule) (bool, error)
 }
 
 // ScanCallbackNoMatch is used to record rules that did not match
@@ -88,7 +88,7 @@ func (c *scanCallbackContainer) finalize() {
 }
 
 //export scanCallbackFunc
-func scanCallbackFunc(message C.int, messageData, userData unsafe.Pointer) C.int {
+func scanCallbackFunc(scanContext unsafe.Pointer, message C.int, messageData, userData unsafe.Pointer) C.int {
 	cbc, ok := callbackData.Get(userData).(*scanCallbackContainer)
 	if !ok {
 		return C.CALLBACK_ERROR
@@ -99,7 +99,7 @@ func scanCallbackFunc(message C.int, messageData, userData unsafe.Pointer) C.int
 	case C.CALLBACK_MSG_RULE_MATCHING:
 		if c, ok := cbc.ScanCallback.(ScanCallbackMatch); ok {
 			r := (*C.YR_RULE)(messageData)
-			abort, err = c.RuleMatching(&Rule{r})
+			abort, err = c.RuleMatching((*C.YR_SCAN_CONTEXT)(scanContext), &Rule{r})
 		}
 	case C.CALLBACK_MSG_RULE_NOT_MATCHING:
 		if c, ok := cbc.ScanCallback.(ScanCallbackNoMatch); ok {
@@ -147,7 +147,7 @@ type MatchRules []MatchRule
 
 // RuleMatching implements the ScanCallbackMatch interface for
 // MatchRules.
-func (mr *MatchRules) RuleMatching(r *Rule) (abort bool, err error) {
+func (mr *MatchRules) RuleMatching(ctx *C.YR_SCAN_CONTEXT, r *Rule) (abort bool, err error) {
 	metas := r.Metas()
 	// convert int to int32 for code that relies on previous behavior
 	for s := range metas {
@@ -160,7 +160,7 @@ func (mr *MatchRules) RuleMatching(r *Rule) (abort bool, err error) {
 		Namespace: r.Namespace(),
 		Tags:      r.Tags(),
 		Meta:      metas,
-		Strings:   r.getMatchStrings(),
+		Strings:   r.getMatchStrings(ctx),
 	})
 	return
 }

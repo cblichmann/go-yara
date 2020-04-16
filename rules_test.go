@@ -1,5 +1,10 @@
 package yara
 
+/*
+#include <stdlib.h>
+#include <yara.h>
+*/
+import "C"
 import (
 	"bytes"
 	"compress/bzip2"
@@ -281,7 +286,7 @@ func newTestCallback(t *testing.T) *testCallback {
 	}
 }
 
-func (c *testCallback) RuleMatching(r *Rule) (bool, error) {
+func (c *testCallback) RuleMatching(ctx *C.YR_SCAN_CONTEXT, r *Rule) (bool, error) {
 	c.t.Logf("RuleMatching callback called: rule=%s", r.Identifier())
 	c.matched[r.Identifier()] = struct{}{}
 	return false, nil
